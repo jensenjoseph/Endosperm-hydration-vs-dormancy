@@ -1,0 +1,972 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-11-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+D <- read.csv("MT128X148 blups R new.csv")
+
+D$qD5H = as.factor(D$qD5H)
+D$qHI2H = as.factor(D$qHI2H)
+D$qHI3H = as.factor(D$qHI3H)
+D$qNAM1 = as.factor(D$qNAM1)
+D$qSS1H = as.factor(D$qSS1H)
+
+summary(D)
+```
+
+```{r}
+pca1 <- prcomp(na.omit(D[,c(2:23)]), center = T, scale. = T)
+```
+
+```{r}
+library(ggfortify)
+library(ggplot2)
+a1 = autoplot(pca1, label = F, loadings.label = T, data = na.omit(D), colour = "qSS1H", loadings.label.repel = T)
+a1
+biplot(pca1, col=c("darkgrey","blue"), asp=1)
+```
+
+```{r}
+DS = subset(D, qSS1H %in% c("BB"))
+
+summary(DS)
+```
+
+```{r}
+pca2 <- prcomp(na.omit(DS[,c(2:23)]), center = T, scale. = T)
+
+a2 = autoplot(pca2, label = F, loadings.label = T, data = na.omit(DS), colour = "qD5H", shape = "qNAM1", loadings.label.repel = T)
+a2
+biplot(pca2, col=c("darkgrey","blue"), asp=1)
+```
+
+```{r, fig.width=8, fig.height=9}
+library(ggpubr)
+combined_plot = ggarrange(a1, a2,
+                          labels = c("A", "B"),
+                          nrow = 2, ncol = 1)
+combined_plot
+```
+
+
+```{r}
+D$Haplotype = paste(D$qHI2H,D$qHI3H,D$HI2, D$HI3)
+D$Haplotype = as.factor(D$Haplotype)
+D$Haplotype2 = paste(D$qSS1H,D$qHI2H,D$qHI3H,D$qNAM1)
+D$Haplotype2 = as.factor(D$Haplotype2)
+summary(D)
+```
+
+
+```{r}
+summary(D$Haplotype)
+```
+
+```{r}
+level_hap = c("AA BB - -", "AA AA - +","BB BB + -", "BB AA + +")
+
+plot1 = ggplot(D, aes(x=qD5H, y=HYI, color=factor(Haplotype, levels = level_hap))) +
+  geom_boxplot() +
+  guides(color = guide_legend(title = "Haplotype"))
+plot1
+```
+
+```{r}
+DS$Haplotype = paste(DS$qHI2H,DS$qHI3H,DS$HI2,DS$HI3)
+DS$Haplotype = as.factor(DS$Haplotype)
+DS$Haplotype2 = paste(DS$qHI2H, DS$qHI3H)
+DS$Haplotype2 = as.factor(DS$Haplotype2)
+summary(DS)
+```
+
+```{r}
+library(dplyr)
+library(graphics)
+library(multcompView)
+
+anova = aov(HYI ~ qD5H * Haplotype2, data = DS)
+data_sum = group_by(DS, qD5H, Haplotype) %>%
+  summarise(mean=mean(HYI), sd=sd(HYI)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`qD5H:Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+#data_sum
+
+level_hap = c("AA BB - -", "AA AA - +","BB BB + -", "BB AA + +")
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+plot2 = ggplot(DS, aes(x=qD5H, y=HYI, fill=factor(Haplotype, levels = level_hap))) +
+  geom_boxplot() +
+  geom_text(data = data_sum, aes(label=Cld, x=qD5H, y=mean +sd), position = position_dodge2(0.75), vjust = -4.8) +
+  #ylim(NA,100) +
+  guides(fill = guide_legend(title = "Haplotype"))+
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+plot2
+```
+
+```{r}
+anova = aov(BG ~ qD5H * Haplotype2, data = DS)
+data_sum = group_by(DS, qD5H, Haplotype) %>%
+  summarise(mean=mean(BG), sd=sd(BG)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`qD5H:Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+level_hap = c("AA BB - -", "AA AA - +","BB BB + -", "BB AA + +")
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+plot3 = ggplot(DS, aes(x=qD5H, y=BG, fill=factor(Haplotype, levels = level_hap))) +
+  geom_boxplot() +
+  geom_text(data = data_sum, aes(label=Cld, x=qD5H, y=mean +sd), position = position_dodge2(0.75), vjust = -6.5) +
+  ylim(NA,900) +
+  guides(fill = guide_legend(title = "Haplotype"))+
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+plot3
+```
+
+```{r}
+anova = aov(FAN ~ qD5H * Haplotype2, data = DS)
+data_sum = group_by(DS, qD5H, Haplotype) %>%
+  summarise(mean=mean(FAN), sd=sd(FAN)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`qD5H:Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.03, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+plot4 = ggplot(DS, aes(x=qD5H, y=FAN, fill=factor(Haplotype, levels = level_hap))) +
+  geom_boxplot() +
+  geom_text(data = data_sum, aes(label=Cld, x=qD5H, y=mean +sd), position = position_dodge2(0.75), vjust = -5) +
+  ylim(NA,315) +
+  guides(fill = guide_legend(title = "Haplotype"))+
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+plot4
+```
+
+```{r}
+anova = aov(AA ~ qD5H * Haplotype2, data = DS)
+data_sum = group_by(DS, qD5H, Haplotype) %>%
+  summarise(mean=mean(AA), sd=sd(AA)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`qD5H:Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+plot5 = ggplot(DS, aes(x=qD5H, y=AA, fill=factor(Haplotype, levels = level_hap))) +
+  geom_boxplot() +
+  geom_text(data = data_sum, aes(label=Cld, x=qD5H, y=mean +sd), position = position_dodge2(0.75), vjust = -5.5) +
+  #ylim(NA,90) +
+  guides(fill = guide_legend(title = "Haplotype")) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+plot5
+```
+
+```{r}
+anova = aov(Extract ~ qD5H * Haplotype2, data = DS)
+data_sum = group_by(DS, qD5H, Haplotype) %>%
+  summarise(mean=mean(Extract), sd=sd(Extract)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`qD5H:Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.003, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+plot6 = ggplot(DS, aes(x=qD5H, y=Extract, fill=factor(Haplotype, levels = level_hap))) +
+  geom_boxplot() +
+  geom_text(data = data_sum, aes(label=Cld, x=qD5H, y=mean +sd), position = position_dodge2(0.75), vjust = -6) +
+  #ylim(NA,) +
+  guides(fill = guide_legend(title = "Haplotype")) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+plot6
+```
+
+```{r}
+anova = aov(PHS ~ qD5H * Haplotype2, data = DS)
+data_sum = group_by(DS, qD5H, Haplotype) %>%
+  summarise(mean=mean(PHS), sd=sd(PHS)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`qD5H:Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+plot7 = ggplot(DS, aes(x=qD5H, y=PHS, fill=factor(Haplotype, levels = level_hap))) +
+  geom_boxplot() +
+  geom_text(data = data_sum, aes(label=Cld, x=qD5H, y=mean +sd), position = position_dodge2(0.75), vjust = -6) +
+  #ylim(NA,) +
+  guides(fill = guide_legend(title = "Haplotype")) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+plot7
+```
+
+```{r, fig.height=14, fig.width=10}
+library(ggpubr)
+combined_plot = ggarrange(plot2, plot3, plot4, plot5, plot6, plot7, nrow = 3, ncol = 2)
+combined_plot
+```
+
+```{r, fig.height=14, fig.width=10}
+png(filename = "J:/Documents/Work/MT128X148/paper/Figure 2.png",
+    height = 980, width = 780)
+combined_plot
+dev.off
+```
+
+```{r}
+D$Haplotype = paste(D$qHI2H,D$qHI3H,D$HI2, D$HI3)
+D$Haplotype = as.factor(D$Haplotype)
+D$Haplotype2 = paste(D$qD5H,D$qSS1H,D$qHI2H,D$qHI3H,D$qNAM1)
+D$Haplotype2 = as.factor(D$Haplotype2)
+D$Haplotype3 = paste(D$qD5H, D$qSS1H, D$qHI2H, D$qHI3H, D$qNAM1, 
+                     D$D5H, D$SS1H, D$HI2, D$HI3, D$NAM1)
+D$Haplotype3 = as.factor(D$Haplotype3)
+
+summary(D)
+```
+
+```{r}
+library(tibble)
+anova = aov(HYI ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(HYI), sd=sd(HYI)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot1 = ggplot(D, aes(Haplotype3, y=HYI)) +
+  geom_boxplot() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank())+
+  ylim(NA,100) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=mean +10), position = position_dodge2(0.75), vjust = -3.5) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot1
+```
+
+```{r}
+anova = aov(D3Germs ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(D3Germs), sd=sd(D3Germs)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot2 = ggplot(D, aes(Haplotype3, y=D3Germs)) +
+  geom_boxplot() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank())+
+  ylim(NA,120) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=mean +9), position = position_dodge2(0.75), vjust = -2) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot2
+```
+
+```{r}
+anova = aov(DT95 ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(DT95), sd=sd(DT95)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot3 = ggplot(D, aes(Haplotype3, y=DT95)) +
+  geom_boxplot() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank())+
+  ylim(NA,53) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=45), position = position_dodge2(0.75), vjust = -2) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot3
+```
+
+```{r}
+anova = aov(PHS ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(PHS), sd=sd(PHS)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot4 = ggplot(D, aes(Haplotype3, y=PHS)) +
+  geom_boxplot() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank())+
+  #ylim(NA,53) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=6), position = position_dodge2(0.75), vjust = -2) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot4
+```
+
+```{r}
+anova = aov(Diameter ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(Diameter), sd=sd(Diameter)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot5 = ggplot(D, aes(Haplotype3, y=Diameter)) +
+  geom_boxplot() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank())+
+  ylim(NA,3.5) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=3.3), position = position_dodge2(0.75), vjust = -2) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot5
+```
+
+```{r}
+anova = aov(Hardness ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(Hardness), sd=sd(Hardness)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot6 = ggplot(D, aes(Haplotype3, y=Hardness)) +
+  geom_boxplot() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank())+
+  #ylim(NA,3.5) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=60), position = position_dodge2(0.75), vjust = -2) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot6
+```
+
+```{r}
+anova = aov(Grain_Protein ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(Grain_Protein), sd=sd(Grain_Protein)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot7 = ggplot(D, aes(Haplotype3, y=Grain_Protein)) +
+  geom_boxplot() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank())+
+  #ylim(NA,3.5) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=14), position = position_dodge2(0.75), vjust = -2) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot7
+```
+
+```{r}
+anova = aov(BG ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(BG), sd=sd(BG)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot8 = ggplot(D, aes(Haplotype3, y=BG)) +
+  geom_boxplot() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank())+
+  ylim(NA,1020) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=mean+190), position = position_dodge2(0.75), vjust = -2) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot8
+```
+
+```{r}
+anova = aov(Soluble_Protein ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(Soluble_Protein), sd=sd(Soluble_Protein)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot9 = ggplot(D, aes(Haplotype3, y=Soluble_Protein)) +
+  geom_boxplot() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank())+
+  ylim(NA,7) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=mean + 0.75), position = position_dodge2(0.75), vjust = -2) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot9
+```
+
+```{r}
+anova = aov(S_T ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(S_T), sd=sd(S_T)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot10 = ggplot(D, aes(Haplotype3, y=S_T)) +
+  geom_boxplot() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank())+
+  ylim(NA,0.6) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=mean + 0.05), position = position_dodge2(0.75), vjust = -2) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot10
+```
+
+```{r}
+anova = aov(FAN ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(FAN), sd=sd(FAN)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.05, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot11 = ggplot(D, aes(Haplotype3, y=FAN)) +
+  geom_boxplot() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank())+
+  ylim(NA,310) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=mean +25), position = position_dodge2(0.75), vjust = -2) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot11
+```
+
+```{r}
+anova = aov(Extract ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(Extract), sd=sd(Extract)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.01, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot12 = ggplot(D, aes(Haplotype3, y=Extract)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  labs(x="Haplotype")+
+  ylim(NA,87) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=mean +1.5), position = position_dodge2(0.75), vjust = -2) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot12
+```
+
+```{r}
+anova = aov(AA ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(AA), sd=sd(AA)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.03, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot13 = ggplot(D, aes(Haplotype3, y=AA)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  labs(x="Haplotype")+
+  #ylim(NA,87) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=mean +14), position = position_dodge2(0.75), vjust = -2) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot13
+```
+
+```{r}
+anova = aov(DP ~ Haplotype2, data = D)
+data_sum = group_by(D, Haplotype3) %>%
+  summarise(mean=mean(DP), sd=sd(DP)) %>%
+  arrange(desc(mean))
+#view(data_sum)
+
+Tukey = TukeyHSD(anova)
+#print(Tukey)
+
+Cld = multcompLetters4(anova, Tukey)
+#print(Cld)
+
+Cld1 = as.data.frame.list(Cld$`Haplotype2`)
+data_sum$Cld = Cld1$Letters
+#print(Cld1)
+data_sum
+
+give.n <- function(x){
+  return(c(y = median(x)*1.03, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+
+level_hap = c("AA AA AA AA L - + K",
+              "BB AA AA AA S - + K",
+              "BB AA AA BB S - + L",
+              "BB AA BB AA S - - K",
+              "BB AA BB BB S - - L",
+              "BB BB AA AA S + + K",
+              "BB BB AA BB S + + L",
+              "BB BB BB AA S + - K",
+              "BB BB BB AB S + - KL",
+              "BB BB BB BB S + - L"
+              )
+nplot14 = ggplot(D, aes(Haplotype3, y=DP)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.25, hjust = 0.5)) +
+  labs(x="Haplotype")+
+  ylim(NA,265) +
+  geom_text(data = data_sum, aes(label=Cld, x=Haplotype3, y=mean +20), position = position_dodge2(0.75), vjust = -2) +
+  stat_summary(fun.data = give.n, geom = "text", fun.y = median,
+               position = position_dodge(width = 0.75))
+nplot14
+```
+
+```{r, fig.height=20, fig.width=12}
+library(ggpubr)
+combined_plot2 = ggarrange(nplot1, nplot2, nplot3, nplot4, nplot5,
+                           nplot6, nplot7, nplot8, nplot9, nplot10,
+                           nplot11, nplot12, nplot13, nplot14, nrow = 5, ncol = 3)
+combined_plot2
+```
+
+```{r, fig.height=14, fig.width=10}
+png(filename = "J:/Documents/Work/MT128X148/paper/Supplemental Figure 1.png",
+    height = 1980, width = 1500)
+combined_plot2
+dev.off
+```
